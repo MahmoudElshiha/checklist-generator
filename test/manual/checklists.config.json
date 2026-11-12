@@ -1,0 +1,14 @@
+{
+  "$schema": "../../checklists.config.schema.json",
+  "sources": "sources",
+  "output": ".",
+  "storage_prefix": "checklist-generator-",
+  "places": {
+    "page": ["Checklist page", "صفحة القائمة"],
+    "terminal": ["Terminal", "الطرفية"],
+    "generator": ["Browser tool", "أداة المتصفح"],
+    "devtools": ["Dev tools", "أدوات المطوّر"],
+    "editor": ["Text editor", "محرر النصوص"],
+    "screen_reader": ["Screen reader", "قارئ الشاشة"]
+  }
+}

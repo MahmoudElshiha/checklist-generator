@@ -7,6 +7,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const engine = require('../checklist-engine.js');
 
 const CONFIG_NAME = 'checklists.config.json';
@@ -88,6 +89,7 @@ function loadConfig(explicit) {
   }
 
   return {
+    root: base,
     file: fs.existsSync(file) ? file : null,
     settings: config,
     sources: path.resolve(base, config.sources || 'checklists/sources'),
@@ -217,8 +219,7 @@ function agentGuide(project, root, run, explicitConfig) {
   const cmd = (c) => run + ' ' + c + opt;
   const builtIn = Object.keys(engine.DEFAULTS.places).map((k) => '`' + k + '`').join(', ');
 
-  return `${GUIDE_MARKER}
-# Manual-test checklists
+  return `# Manual-test checklists
 
 This folder holds bilingual (English / Arabic) manual-test checklists, built with
 [checklist-generator](https://github.com/MahmoudElshiha/checklist-generator).
@@ -292,21 +293,87 @@ https://raw.githubusercontent.com/MahmoudElshiha/checklist-generator/main/checkl
 `;
 }
 
+/*
+ * The guide's first line marks it as ours and records a fingerprint of the text
+ * below it: <!-- checklists-generator guide 1a2b3c4d5e6f -->. While the text
+ * still matches, nobody has edited it, so a newer version may rewrite it.
+ * Guides written by 1.1 and 1.2 have the bare marker and no fingerprint.
+ */
+const GUIDE_STAMP = /^<!-- checklists-generator(?: guide ([0-9a-f]{12}))? -->\r?\n/;
+
+function fingerprint(text) {
+  return crypto.createHash('sha256').update(text.replace(/\r\n/g, '\n')).digest('hex').slice(0, 12);
+}
+
+function guideFile(project, root) {
+  const dir = project.output;
+  return path.join(dir, path.resolve(dir) === path.resolve(root) ? 'CHECKLISTS.md' : 'AGENTS.md');
+}
+
+/** How this project runs the tool: through its npm script when it has ours, otherwise npx. */
+function runCommand(root) {
+  try {
+    const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
+    if (pkg && pkg.scripts && pkg.scripts.checklists === NPM_SCRIPT) {
+      return 'npm run checklists';
+    }
+  } catch (e) {
+    // No package.json, or not readable: npx it is.
+  }
+  return 'npx ' + PACKAGE.name;
+}
+
+/**
+ * Creates the agent guide (when `create`) or brings an existing one up to this
+ * version's text. A guide someone has edited, or a file that isn't ours, is left
+ * alone. Returns the guide's path.
+ */
+function syncAgentGuide(project, root, run, explicitConfig, create) {
+  const file = guideFile(project, root);
+  const body = agentGuide(project, root, run, explicitConfig);
+  const stamped = '<!-- checklists-generator guide ' + fingerprint(body) + ' -->\n' + body;
+  const shown = rel(root, file);
+
+  if (!fs.existsSync(file)) {
+    if (create) {
+      fs.mkdirSync(path.dirname(file), { recursive: true });
+      fs.writeFileSync(file, stamped);
+      console.log('Created ' + file + ' (instructions for AI agents and people)');
+    }
+    return file;
+  }
+
+  const text = fs.readFileSync(file, 'utf8');
+  const stamp = text.match(GUIDE_STAMP);
+  if (!stamp) {
+    if (create) {
+      console.log(file + ' already exists; left it as it is.');
+    }
+    return file;
+  }
+
+  const current = text.slice(stamp[0].length);
+  if (stamp[1] && current.replace(/\r\n/g, '\n') === body) {
+    return file;
+  }
+  if (stamp[1] && fingerprint(current) !== stamp[1]) {
+    console.log('Note: ' + shown + ' was edited by hand, so it was not updated to the ' + PACKAGE.version +
+      ' guide. To get the new one, delete it and run `init`.');
+    return file;
+  }
+
+  const eol = text.includes('\r\n') ? '\r\n' : '\n';
+  fs.writeFileSync(file, stamped.replace(/\n/g, eol));
+  console.log('Updated ' + shown + ' to the checklist-generator ' + PACKAGE.version + ' guide.');
+  return file;
+}
+
 /**
  * Writes the agent guide into the pages folder (unless one is there) and points
  * the project's own AGENTS.md / CLAUDE.md at it, if they exist.
  */
 function writeAgentGuide(project, root, run, explicitConfig) {
-  const dir = project.output;
-  const file = path.join(dir, path.resolve(dir) === path.resolve(root) ? 'CHECKLISTS.md' : 'AGENTS.md');
-
-  if (fs.existsSync(file)) {
-    console.log(file + ' already exists; left it as it is.');
-  } else {
-    fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(file, agentGuide(project, root, run, explicitConfig));
-    console.log('Created ' + file + ' (instructions for AI agents and people)');
-  }
+  const file = syncAgentGuide(project, root, run, explicitConfig, true);
 
   const pointer = '\n' + GUIDE_MARKER + '\n## Manual-test checklists\n\n' +
     'Manual-test checklists are JSON sources built into HTML pages. Before adding or changing one, read `' +
@@ -496,7 +563,11 @@ function main() {
     }
 
     case 'build':
-      return withUpdateCheck(() => build(project, args.names, false));
+      return withUpdateCheck(() => {
+        const code = build(project, args.names, false);
+        syncAgentGuide(project, project.root, runCommand(project.root), !!args.config, false);
+        return code;
+      });
 
     case 'check':
       return build(project, args.names, true);

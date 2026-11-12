@@ -247,3 +247,39 @@ test('build fails clearly when the "style" file is missing', () => {
   assert.equal(result.code, 1);
   assert.match(result.out, /cannot read the "style" file/);
 });
+
+test('build brings the agent guide up to date, but never one edited by hand', () => {
+  const dir = tempProject();
+  assert.equal(run(dir, 'init').code, 0);
+  const guide = path.join(dir, 'checklists', 'AGENTS.md');
+  const fresh = fs.readFileSync(guide, 'utf8');
+  assert.match(fresh, /^<!-- checklists-generator guide [0-9a-f]{12} -->\n# Manual-test checklists/);
+
+  // Up to date: nothing to do.
+  assert.doesNotMatch(run(dir, 'build').out, /AGENTS\.md/);
+  assert.equal(fs.readFileSync(guide, 'utf8'), fresh);
+
+  // A guide from an older version (1.1 / 1.2: bare marker, older text) is replaced.
+  fs.writeFileSync(guide, '<!-- checklists-generator -->\n# Manual-test checklists\n\nOld text.\n');
+  assert.match(run(dir, 'build').out, /Updated checklists\/AGENTS\.md/);
+  assert.equal(fs.readFileSync(guide, 'utf8'), fresh);
+
+  // An unedited guide with older text is replaced too (CRLF checkouts count as unedited).
+  const oldBody = '# Manual-test checklists\r\n\r\nOld text.\r\n';
+  const crypto = require('crypto');
+  const hash = crypto.createHash('sha256').update(oldBody.replace(/\r\n/g, '\n')).digest('hex').slice(0, 12);
+  fs.writeFileSync(guide, '<!-- checklists-generator guide ' + hash + ' -->\r\n' + oldBody);
+  assert.match(run(dir, 'build').out, /Updated/);
+  assert.equal(fs.readFileSync(guide, 'utf8'), fresh.replace(/\n/g, '\r\n'));
+
+  // Edited by hand: left alone, with a note.
+  const edited = fresh + '\nOur own rule: every check names its ticket.\n';
+  fs.writeFileSync(guide, edited);
+  assert.match(run(dir, 'build').out, /edited by hand/);
+  assert.equal(fs.readFileSync(guide, 'utf8'), edited);
+
+  // Not ours at all: left alone, silently.
+  fs.writeFileSync(guide, '# Our agents file\n');
+  assert.doesNotMatch(run(dir, 'build').out, /AGENTS\.md/);
+  assert.equal(fs.readFileSync(guide, 'utf8'), '# Our agents file\n');
+});

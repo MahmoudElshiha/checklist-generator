@@ -304,6 +304,8 @@ Through npm, options need `--`: `npm run checklists -- check --config other.json
 
 `init` never overwrites anything you already have: config, sources, guide, script or dependency. Running it again is safe. The only exception is the old `npx --yes github:…` script, which it replaces.
 
+The agent guide keeps itself current. After you update the tool, the next `build` rewrites the guide with the new version's instructions. A guide you've edited by hand is never touched: `build` prints a note, and you can delete the guide and run `init` to get the new one.
+
 ---
 
 ## Updating
