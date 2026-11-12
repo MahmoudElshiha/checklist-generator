@@ -2,6 +2,8 @@
 
 Turn a short JSON file into a **bilingual (English / Arabic) manual-test checklist**: one self-contained HTML page a tester opens in any browser.
 
+**Built to be written by AI.** Describe the feature and your AI coding agent writes the checklist, in both languages, checks it and builds the page. [See how](#let-ai-write-your-checklists).
+
 What testers get:
 
 - English ⇄ Arabic toggle (Arabic is right-to-left)
@@ -41,6 +43,59 @@ Edit the JSON, run `build` again, and commit **both** files: the source so the c
 
 ---
 
+## Let AI write your checklists
+
+This is the fastest way to use the tool. The AI writes the JSON, and the tool makes sure it's complete before building the page. A checklist with a missing translation, a missing expectation or an unknown step label is refused, with every problem listed, so the agent fixes it before anything ships.
+
+### With a coding agent (Claude Code, Codex, Cursor, Copilot…)
+
+`init` sets this up for you. It writes `checklists/AGENTS.md`, a guide for this project covering which files to edit, the exact commands, the source format and what makes a good check. If your project has an `AGENTS.md` or `CLAUDE.md` at its root, `init` adds a pointer to the guide, so the agent finds it on its own. Create one of those later? Run `init` again to add the pointer.
+
+Then just ask:
+
+```text
+Write the manual-test checklist for the password reset feature.
+```
+
+```text
+Read the changes on this branch and write a manual-test checklist that covers them,
+including the error cases. Use the test accounts from the seed data.
+```
+
+```text
+Add checks to 2026-11-12-refunds-manual-tests for partial refunds and the new 30-day limit.
+```
+
+The agent writes the source, runs `check` until it passes, and builds the page. Because it can read your code, it can name the real screens, messages, endpoints and figures.
+
+**Tip:** give it what a tester needs and the code doesn't show: the ticket, the test server, the test accounts, a partner's test cases.
+
+### With a chat assistant (Claude, ChatGPT…)
+
+No repo access needed. Paste this, then describe the feature below it:
+
+```text
+Write a manual-test checklist as JSON for checklist-generator.
+Follow this JSON Schema exactly:
+https://raw.githubusercontent.com/MahmoudElshiha/checklist-generator/main/checklist.schema.json
+
+Rules:
+- Every text is { "en": "...", "ar": "..." }; write real Arabic, both are required.
+- No numbers in section or check titles; the page numbers them.
+- Section 0 is "Setup": deploy, test data, accounts.
+- One check proves one thing. Every "expect" line is something visible on screen
+  or in a response, with exact figures and messages. Cover error cases too.
+- Step "where" is one of: server, database, admin, website, mobile_app, api, mailbox, partner.
+- Commands, SQL and payloads go in "code", not in the step text.
+
+The feature:
+<describe it, or paste the ticket>
+```
+
+Paste the reply into the [browser tool](#browser-tool-no-install) to preview it and see any problems. Then **Download page**, or save the JSON to `checklists/sources/` and run `build`.
+
+---
+
 ## Everyday commands
 
 ```bash
@@ -64,6 +119,8 @@ Name sources date first (`2026-11-12-feature-manual-tests`) so they sort in the 
 ---
 
 ## Writing a checklist
+
+The format, if you write or review checklists by hand. Your AI agent gets the same rules from `AGENTS.md`.
 
 ```json
 {
@@ -220,14 +277,6 @@ npm install --save-dev checklist-generator@latest  # latest, including a new maj
 ```
 
 Then run `npm run checklists build` to rebuild your pages with the new version. Testers keep their saved results. Commit `package-lock.json` so the whole team uses the same version. See [releases](https://github.com/MahmoudElshiha/checklist-generator/releases) for what changed.
-
----
-
-## AI coding agents
-
-`init` writes `checklists/AGENTS.md`: a short guide for this project covering which files to edit, the exact commands, the source format and the rules. If your project has an `AGENTS.md` or `CLAUDE.md` at its root, `init` adds a pointer to the guide there (run `init` again if you create one later).
-
-After that, asking an agent (Claude Code, Codex, Cursor…) to "write the manual-test checklist for the refund feature" is enough. It writes the source, runs `check` until it passes, and builds the page.
 
 ---
 
