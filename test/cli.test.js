@@ -32,6 +32,40 @@ test('init creates a config and a first source that builds', () => {
   assert.ok(fs.existsSync(path.join(dir, 'checklists', sources[0].replace('.json', '.html'))));
 });
 
+test('init adds a "checklists" script to an existing package.json', () => {
+  const dir = tempProject();
+  const pkgFile = path.join(dir, 'package.json');
+  fs.writeFileSync(pkgFile, '{\r\n    "name": "app",\r\n    "scripts": {\r\n        "test": "jest"\r\n    }\r\n}\r\n');
+
+  const result = run(dir, 'init');
+  assert.equal(result.code, 0, result.out);
+  assert.match(result.out, /npm run checklists build/);
+
+  const text = fs.readFileSync(pkgFile, 'utf8');
+  const pkg = JSON.parse(text);
+  assert.equal(pkg.scripts.test, 'jest');
+  assert.equal(pkg.scripts.checklists, 'npx --yes github:MahmoudElshiha/checklist-generator');
+  assert.match(text, /^ {4}"name"/m, 'keeps the indentation');
+  assert.ok(!/[^\r]\n/.test(text), 'keeps CRLF line endings');
+
+  run(dir, 'init');
+  assert.equal(fs.readFileSync(pkgFile, 'utf8'), text, 'running init again changes nothing');
+});
+
+test('init leaves an existing "checklists" script and a missing package.json alone', () => {
+  const dir = tempProject();
+  const pkgFile = path.join(dir, 'package.json');
+  const original = JSON.stringify({ name: 'app', scripts: { checklists: 'my own command' } }, null, 2) + '\n';
+  fs.writeFileSync(pkgFile, original);
+
+  assert.equal(run(dir, 'init').code, 0);
+  assert.equal(fs.readFileSync(pkgFile, 'utf8'), original);
+
+  const bare = tempProject();
+  assert.equal(run(bare, 'init').code, 0);
+  assert.ok(!fs.existsSync(path.join(bare, 'package.json')));
+});
+
 test('new refuses to overwrite, check writes nothing, build fails on a bad source', () => {
   const dir = tempProject();
   run(dir, 'init');

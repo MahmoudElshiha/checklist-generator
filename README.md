@@ -62,13 +62,23 @@ checklists/
 
 and `build` writes `checklists/2026-11-12-example-manual-tests.html`.
 
-Tip: add it to your project's `package.json` so nobody has to remember the command:
+If the folder has a `package.json`, `init` also adds a script to it, so nobody has to remember the long command:
 
 ```json
 "scripts": {
-  "checklists": "npx --yes github:MahmoudElshiha/checklist-generator build"
+  "checklists": "npx --yes github:MahmoudElshiha/checklist-generator"
 }
 ```
+
+After that every command runs through npm:
+
+```bash
+npm run checklists build
+npm run checklists new 2026-11-12-login-manual-tests
+npm run checklists -- check --config other.json   # options need the "--"
+```
+
+`init` never changes a `checklists` script that is already there.
 
 ---
 
@@ -220,7 +230,8 @@ In the browser tool, load this file with **Project settings** so the preview use
 ## The command line
 
 ```
-checklists init                 create checklists.config.json and a first source here
+checklists init                 create checklists.config.json and a first source here,
+                                and add a "checklists" script to package.json
 checklists new <name>           create a new source from the starter
 checklists build [name...]      build every source (or the ones named) into pages
 checklists check [name...]      validate only, write nothing
@@ -229,7 +240,7 @@ checklists help
 --config <file>                 use this config instead of ./checklists.config.json
 ```
 
-Run it with `npx github:MahmoudElshiha/checklist-generator <command>`, or from a clone with `node bin/checklists.js <command>`.
+Run it with `npx github:MahmoudElshiha/checklist-generator <command>`, with `npm run checklists <command>` once `init` has added the script, or from a clone with `node bin/checklists.js <command>`. To type plain `checklists <command>` anywhere, install it globally: `npm i -g github:MahmoudElshiha/checklist-generator`.
 
 - It reads the config from the current folder (or `--config`); without one it uses `./checklists/sources` → `./checklists`.
 - `build` refuses a source with problems, prints every one of them, writes nothing for that source, and exits with code 1 — so `checklists check` works as a pre-commit hook or a CI step.

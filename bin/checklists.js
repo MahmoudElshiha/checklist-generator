@@ -11,11 +11,13 @@ const engine = require('../checklist-engine.js');
 
 const CONFIG_NAME = 'checklists.config.json';
 const SCHEMA_BASE = 'https://raw.githubusercontent.com/MahmoudElshiha/checklist-generator/main/';
+const NPM_SCRIPT = 'npx --yes github:MahmoudElshiha/checklist-generator';
 
 const HELP = `checklists — build bilingual manual-test checklist pages from JSON sources
 
 Usage
-  checklists init                 create ${CONFIG_NAME} and a first source here
+  checklists init                 create ${CONFIG_NAME} and a first source here,
+                                  and add a "checklists" script to package.json
   checklists new <name>           create a new source from the starter
   checklists build [name...]      build every source (or the ones named) into pages
   checklists check [name...]      validate only, write nothing
@@ -124,6 +126,45 @@ function writeJson(file, value) {
   fs.writeFileSync(file, JSON.stringify(value, null, 2) + '\n');
 }
 
+/**
+ * Adds a "checklists" npm script to the package.json in `dir`, if there is one
+ * and it has no such script yet. Keeps the file's indentation and line endings.
+ * Returns true when package.json has the script afterwards.
+ */
+function addNpmScript(dir) {
+  const file = path.join(dir, 'package.json');
+  if (!fs.existsSync(file)) {
+    return false;
+  }
+
+  const text = fs.readFileSync(file, 'utf8');
+  let pkg;
+  try {
+    pkg = JSON.parse(text);
+  } catch (e) {
+    console.log('Skipped ' + file + ': not valid JSON (' + e.message + ').');
+    return false;
+  }
+  if (!pkg || typeof pkg !== 'object' || Array.isArray(pkg)) {
+    return false;
+  }
+
+  if (pkg.scripts && pkg.scripts.checklists !== undefined) {
+    if (pkg.scripts.checklists === NPM_SCRIPT) {
+      return true;
+    }
+    console.log(file + ' already has a "checklists" script; left it as it is.');
+    return false;
+  }
+
+  pkg.scripts = Object.assign({}, pkg.scripts, { checklists: NPM_SCRIPT });
+  const indent = (text.match(/^[ \t]+(?=")/m) || ['  '])[0];
+  const eol = text.includes('\r\n') ? '\r\n' : '\n';
+  fs.writeFileSync(file, JSON.stringify(pkg, null, indent).replace(/\n/g, eol) + eol);
+  console.log('Added a "checklists" script to ' + file);
+  return true;
+}
+
 function sourceFiles(dir, names) {
   if (names.length) {
     return names.map((n) => path.join(dir, path.basename(n, '.json') + '.json'));
@@ -203,7 +244,8 @@ function main() {
         writeJson(first, starter());
         console.log('Created ' + first);
       }
-      console.log('Next: edit the source, then run `checklists build`.');
+      const hasScript = addNpmScript(path.dirname(file));
+      console.log('Next: edit the source, then run `' + (hasScript ? 'npm run checklists build' : 'checklists build') + '`.');
       return 0;
     }
 
