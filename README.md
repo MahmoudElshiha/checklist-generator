@@ -278,6 +278,8 @@ npm install --save-dev checklist-generator@latest  # latest, including a new maj
 
 Then run `npm run checklists build` to rebuild your pages with the new version. Testers keep their saved results. Commit `package-lock.json` so the whole team uses the same version. See [releases](https://github.com/MahmoudElshiha/checklist-generator/releases) for what changed.
 
+`build` tells you when a newer version is out. It asks the npm registry while it builds, waits at most 1.5 seconds and stays silent when you're offline. It never runs in CI. To turn it off, set `NO_UPDATE_NOTIFIER=1` or `CHECKLISTS_NO_UPDATE_CHECK=1`.
+
 ---
 
 ## Browser tool (no install)

@@ -10,7 +10,8 @@ const { spawnSync } = require('child_process');
 const CLI = path.resolve(__dirname, '..', 'bin', 'checklists.js');
 
 function run(cwd, ...args) {
-  const r = spawnSync(process.execPath, [CLI, ...args], { cwd, encoding: 'utf8' });
+  const env = Object.assign({}, process.env, { CHECKLISTS_NO_UPDATE_CHECK: '1' });
+  const r = spawnSync(process.execPath, [CLI, ...args], { cwd, encoding: 'utf8', env });
   return { code: r.status, out: r.stdout + r.stderr };
 }
 
@@ -182,4 +183,41 @@ test('init names the guide CHECKLISTS.md when pages go to the project root', () 
   assert.equal(run(dir, 'init').code, 0);
   assert.ok(fs.existsSync(path.join(dir, 'CHECKLISTS.md')));
   assert.match(fs.readFileSync(path.join(dir, 'AGENTS.md'), 'utf8'), /read `CHECKLISTS\.md`/);
+});
+
+/** Runs the CLI with the update check on, against a fake registry that reports `latest`. */
+async function buildWithRegistry(latest) {
+  const http = require('http');
+  const { spawn } = require('child_process');
+  const server = http.createServer((req, res) => {
+    res.setHeader('content-type', 'application/json');
+    res.end(JSON.stringify({ name: OWN.name, version: latest }));
+  });
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const env = Object.assign({}, process.env, { npm_config_registry: 'http://127.0.0.1:' + server.address().port + '/' });
+  for (const key of ['CI', 'NO_UPDATE_NOTIFIER', 'CHECKLISTS_NO_UPDATE_CHECK']) delete env[key];
+  try {
+    return await new Promise((resolve) => {
+      const child = spawn(process.execPath, [CLI, 'build'], { cwd: tempProject(), env });
+      let out = '';
+      child.stdout.on('data', (d) => { out += d; });
+      child.stderr.on('data', (d) => { out += d; });
+      child.on('close', (code) => resolve({ code, out }));
+    });
+  } finally {
+    server.close();
+  }
+}
+
+test('build tells you how to update when a newer version is published', async () => {
+  const result = await buildWithRegistry('999.0.0');
+  assert.equal(result.code, 0, result.out);
+  assert.match(result.out, /Update available: .* → 999\.0\.0/);
+  assert.match(result.out, /npm install --save-dev checklist-generator@latest/);
+});
+
+test('build says nothing about updates when already on the latest version', async () => {
+  const result = await buildWithRegistry(OWN.version);
+  assert.equal(result.code, 0, result.out);
+  assert.doesNotMatch(result.out, /Update available/);
 });

@@ -234,6 +234,13 @@ ${cmd('build 2026-11-12-login-manual-tests')}  # just one
 \`check\` and \`build\` print every problem with its location (\`check 2.3: missing "ar"\`) and exit
 with code 1. Loop until \`check\` passes, then \`build\`. Commit the source **and** the page.
 
+**Watch for the update notice.** When a newer version of checklist-generator is published, \`build\` ends
+with an "Update available" box. When you see it, tell the user in your reply: name both versions, recommend
+updating, and give them the commands to run: ${run.startsWith('npm ')
+    ? '`npm install --save-dev ' + PACKAGE.name + '@latest`, then `' + cmd('build') + '`'
+    : '`npx ' + PACKAGE.name + '@latest build' + opt + '`'}. Newer versions can fix bugs and add checks. Don't update on your own unless the user asks,
+because it changes their \`package.json\` and lock file. Nothing breaks if they wait.
+
 ## Source format
 
 The full JSON Schema is linked from every source's \`$schema\`:
@@ -320,6 +327,68 @@ function sourceFiles(dir, names) {
     return [];
   }
   return fs.readdirSync(dir).filter((f) => f.endsWith('.json')).sort().map((f) => path.join(dir, f));
+}
+
+/** True when version `a` (x.y.z) is newer than `b`. Pre-release suffixes are ignored. */
+function isNewer(a, b) {
+  const parts = (v) => String(v).split('-')[0].split('.').map((n) => parseInt(n, 10) || 0);
+  const x = parts(a);
+  const y = parts(b);
+  for (let i = 0; i < 3; i++) {
+    if ((x[i] || 0) !== (y[i] || 0)) {
+      return (x[i] || 0) > (y[i] || 0);
+    }
+  }
+  return false;
+}
+
+/**
+ * Asks the npm registry for the latest published version. Resolves to the
+ * version string, or null when offline, slow, disabled or anything goes wrong.
+ * Never rejects. Off in CI and with NO_UPDATE_NOTIFIER or CHECKLISTS_NO_UPDATE_CHECK set.
+ */
+function latestVersion(timeoutMs) {
+  const env = process.env;
+  if (env.CI || env.NO_UPDATE_NOTIFIER || env.CHECKLISTS_NO_UPDATE_CHECK || typeof fetch !== 'function') {
+    return Promise.resolve(null);
+  }
+  const registry = (env.npm_config_registry || 'https://registry.npmjs.org/').replace(/\/?$/, '/');
+  return fetch(registry + PACKAGE.name + '/latest', {
+    headers: { accept: 'application/json' },
+    signal: AbortSignal.timeout(timeoutMs),
+  })
+    .then((res) => (res.ok ? res.json() : null))
+    .then((body) => (body && typeof body.version === 'string' ? body.version : null))
+    .catch(() => null);
+}
+
+function updateMessage(latest) {
+  const line = '─'.repeat(60);
+  return [
+    '',
+    line,
+    `  Update available: ${PACKAGE.name} ${PACKAGE.version} → ${latest}`,
+    '',
+    '  To update, run in your project folder:',
+    `    npm install --save-dev ${PACKAGE.name}@latest`,
+    '  then rebuild your pages:',
+    '    npm run checklists build',
+    '',
+    '  No package.json? Use: npx ' + PACKAGE.name + '@latest build',
+    '  What changed: https://github.com/MahmoudElshiha/checklist-generator/releases',
+    line,
+  ].join('\n');
+}
+
+/** Runs `work` while the update check runs alongside it, then prints a notice if one is due. */
+async function withUpdateCheck(work) {
+  const pending = latestVersion(1500);
+  const code = work();
+  const latest = await pending;
+  if (latest && isNewer(latest, PACKAGE.version)) {
+    console.error(updateMessage(latest));
+  }
+  return code;
 }
 
 function build(project, names, checkOnly) {
@@ -412,7 +481,7 @@ function main() {
     }
 
     case 'build':
-      return build(project, args.names, false);
+      return withUpdateCheck(() => build(project, args.names, false));
 
     case 'check':
       return build(project, args.names, true);
@@ -434,4 +503,6 @@ function main() {
   }
 }
 
-process.exitCode = main();
+Promise.resolve(main()).then((code) => {
+  process.exitCode = code;
+});
