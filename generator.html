@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Checklist Generator</title>
+<!--
+  checklist-generator — the browser tool. Open this file (or its hosted copy)
+  in any browser: nothing to install, nothing is sent anywhere. It builds the
+  same page as the `checklists` CLI, with the same engine.
+  Docs: https://github.com/MahmoudElshiha/checklist-generator#readme
+-->
+<script src="checklist-engine.js"></script>
+<style>
+:root {
+  --bg: #f6f5f3; --surface: #ffffff; --ink: #1c1917; --muted: #6b6560; --line: #e7e3df;
+  --accent: #0f766e; --accent-soft: #ccfbf1; --code-bg: #f1efec;
+  --bad: #b91c1c; --bad-soft: #fee2e2; --good: #15803d; --good-soft: #dcfce7;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #12100f; --surface: #1c1917; --ink: #f5f5f4; --muted: #a8a29e; --line: #2e2a27;
+    --accent: #2dd4bf; --accent-soft: #134e4a; --code-bg: #262220;
+    --bad: #f87171; --bad-soft: #3b1414; --good: #4ade80; --good-soft: #12301c;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #12100f; --surface: #1c1917; --ink: #f5f5f4; --muted: #a8a29e; --line: #2e2a27;
+  --accent: #2dd4bf; --accent-soft: #134e4a; --code-bg: #262220;
+  --bad: #f87171; --bad-soft: #3b1414; --good: #4ade80; --good-soft: #12301c;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+header { position: sticky; top: 0; z-index: 2; background: var(--bg); border-bottom: 1px solid var(--line); }
+.bar { max-width: 1400px; margin: 0 auto; padding: 10px 16px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.bar h1 { font-size: 16px; margin: 0 8px 0 0; }
+.bar .spacer { flex: 1; }
+button, .file, input[type=text] { font: inherit; font-size: 13px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 8px; padding: 6px 10px; }
+button, .file { cursor: pointer; }
+button:hover, .file:hover { border-color: var(--accent); }
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--bg); font-weight: 600; }
+button:disabled { opacity: .45; cursor: not-allowed; }
+.file input { display: none; }
+input[type=text] { width: 300px; max-width: 100%; font-family: ui-monospace, Consolas, monospace; }
+.project { font-size: 12px; color: var(--muted); display: flex; gap: 6px; align-items: center; }
+.project strong { color: var(--ink); font-weight: 600; }
+.project button { padding: 2px 8px; font-size: 12px; }
+main { max-width: 1400px; margin: 0 auto; padding: 16px; display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+@media (max-width: 960px) { main { grid-template-columns: minmax(0, 1fr); } }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; display: flex; flex-direction: column; min-height: 0; }
+.panel h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin: 0; padding: 10px 14px; border-bottom: 1px solid var(--line); display: flex; gap: 8px; align-items: center; }
+.panel h2 .grow { flex: 1; }
+textarea { flex: 1; min-height: 60vh; border: 0; resize: vertical; padding: 12px 14px; background: transparent; color: var(--ink); font: 12.5px/1.55 ui-monospace, "Cascadia Code", Consolas, monospace; tab-size: 2; outline: none; }
+iframe { flex: 1; min-height: 60vh; border: 0; width: 100%; border-radius: 0 0 12px 12px; background: #fff; }
+#status { padding: 10px 14px; border-top: 1px solid var(--line); font-size: 13px; max-height: 30vh; overflow: auto; }
+#status.ok { background: var(--good-soft); color: var(--good); }
+#status.bad { background: var(--bad-soft); color: var(--bad); }
+#status ul { margin: 4px 0 0; padding-inline-start: 20px; }
+.help { grid-column: 1 / -1; padding: 4px 18px 14px; }
+.help summary { cursor: pointer; font-weight: 600; padding: 10px 0; }
+.help code, .help pre { font-family: ui-monospace, Consolas, monospace; font-size: 12.5px; background: var(--code-bg); border-radius: 5px; }
+.help code { padding: 1px 5px; }
+.help pre { padding: 10px 12px; overflow-x: auto; }
+.help table { border-collapse: collapse; font-size: 13px; }
+.help td, .help th { border-bottom: 1px solid var(--line); padding: 4px 10px; text-align: start; }
+.help a { color: var(--accent); }
+</style>
+</head>
+<body>
+<header><div class="bar">
+  <h1>Checklist generator</h1>
+  <button type="button" id="new">New</button>
+  <label class="file">Open source (.json)<input type="file" id="open" accept=".json,application/json"></label>
+  <label class="file" title="Turn an existing checklist page into a source">Import page (.html)<input type="file" id="import" accept=".html,text/html"></label>
+  <label class="file" title="Load a project's checklists.config.json: its step labels and defaults">Project settings<input type="file" id="config" accept=".json,application/json"></label>
+  <span class="project" id="project"></span>
+  <span class="spacer"></span>
+  <input type="text" id="name" placeholder="yyyy-mm-dd-feature-manual-tests" aria-label="File name, without extension">
+  <button type="button" id="save-json">Download source</button>
+  <button type="button" id="save-html" class="primary">Download page</button>
+  <button type="button" id="theme" title="Light / dark">Theme</button>
+</div></header>
+
+<main>
+  <section class="panel">
+    <h2><span class="grow">Source (JSON)</span><button type="button" id="format">Format</button></h2>
+    <textarea id="source" spellcheck="false" aria-label="Checklist source as JSON"></textarea>
+    <div id="status" role="status" aria-live="polite"></div>
+  </section>
+
+  <section class="panel">
+    <h2><span class="grow">Preview</span><span class="muted" id="count"></span></h2>
+    <iframe id="preview" title="Checklist preview"></iframe>
+  </section>
+
+  <details class="panel help">
+    <summary>How it works, and the source format</summary>
+    <p><strong>Workflow.</strong> Start with <em>New</em>, <em>Open source</em> or <em>Import page</em>. If your project has a <code>checklists.config.json</code>, load it with <em>Project settings</em> first — it adds your project's step labels and defaults. Edit the JSON on the left; the page on the right updates as you type, and anything wrong is listed under the editor. Name the file date first (<code>2026-11-12-feature-manual-tests</code>), then <em>Download source</em> into your sources folder and <em>Download page</em> into your pages folder. Your draft and project settings are kept in this browser.</p>
+    <p><strong>Rules.</strong> Every text needs <code>en</code> and <code>ar</code>, and may contain HTML (<code>&lt;code&gt;</code>, <code>&lt;strong&gt;</code>…). Sections and checks are numbered for you — never type the numbers. Each check's <code>key</code> is what the browser saves the tick under: keep it when you reword a check. <code>code</code> blocks are plain text with a Copy button.</p>
+    <pre>{
+  "title":   { "en": "Feature Checks", "ar": "فحوصات الميزة" },
+  "heading": { "en": "Feature — manual checks", "ar": "الميزة — الفحوصات اليدوية" },
+  "intro":   { "en": "&lt;p&gt;What is tested and why.&lt;/p&gt;", "ar": "&lt;p&gt;ما الذي يُختبر ولماذا.&lt;/p&gt;" },
+  "sections": [
+    { "title": { "en": "Setup", "ar": "التجهيز" }, "items": [
+      { "key": "setup-build",
+        "title":  { "en": "The test server runs the latest build", "ar": "خادم الاختبار يعمل بآخر نسخة" },
+        "steps":  [ { "where": "server", "en": "Run &lt;code&gt;make deploy&lt;/code&gt;.", "ar": "شغّل &lt;code&gt;make deploy&lt;/code&gt;." } ],
+        "code":   [ "make deploy" ],
+        "expect": [ { "en": "It finishes without errors.", "ar": "ينتهي دون أخطاء." } ] }
+    ] }
+  ]
+}</pre>
+    <p><strong>Step labels</strong> (<code>where</code>) available now — add your own under <code>places</code> in the source or in the project settings:</p>
+    <table id="places"></table>
+    <p>Full documentation: <a href="https://github.com/MahmoudElshiha/checklist-generator#readme">github.com/MahmoudElshiha/checklist-generator</a></p>
+  </details>
+</main>
+
+<script>
+(function () {
+  var DRAFT = 'checklist-generator:draft';
+  var CONFIG = 'checklist-generator:config';
+  var SCHEMA = 'https://raw.githubusercontent.com/MahmoudElshiha/checklist-generator/main/checklist.schema.json';
+  var engine = window.ChecklistEngine;
+  var $ = function (id) { return document.getElementById(id); };
+  var source = $('source'), status = $('status'), preview = $('preview'), name = $('name');
+  var project = { name: null, settings: {} };
+  var lastHtml = null, timer = null;
+
+  if (!engine) {
+    document.body.innerHTML = '<p style="padding:20px">checklist-engine.js did not load. Keep generator.html next to it.</p>';
+    return;
+  }
+
+  var STARTER = {
+    $schema: SCHEMA,
+    title: { en: 'Feature Checks', ar: 'فحوصات الميزة' },
+    heading: { en: 'Feature — manual checks', ar: 'الميزة — الفحوصات اليدوية' },
+    intro: { en: '<p>What this checklist tests and why, in a few sentences.</p>', ar: '<p>ما الذي تختبره هذه القائمة ولماذا، في بضع جمل.</p>' },
+    sections: [{
+      title: { en: 'Setup', ar: 'التجهيز' },
+      items: [{
+        key: 'setup-build',
+        title: { en: 'The test server runs the latest build', ar: 'خادم الاختبار يعمل بآخر نسخة' },
+        steps: [{ where: 'server', en: 'Deploy the branch to the test server and run its build steps.', ar: 'انشر الفرع على خادم الاختبار وشغّل خطوات البناء.' }],
+        expect: [{ en: 'Every step finishes without errors.', ar: 'تنتهي كل الخطوات دون أخطاء.' }]
+      }]
+    }]
+  };
+
+  function store(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) {} }
+  function fetchStored(key) { try { return JSON.parse(localStorage.getItem(key) || 'null'); } catch (e) { return null; } }
+
+  function renderPlaces() {
+    var table = $('places');
+    var known = engine.places(project.settings);
+    table.innerHTML = '<tr><th>where</th><th>English</th><th>Arabic</th></tr>';
+    Object.keys(known).forEach(function (k) {
+      var tr = document.createElement('tr');
+      tr.innerHTML = '<td><code></code></td><td></td><td></td>';
+      tr.children[0].firstChild.textContent = k;
+      tr.children[1].textContent = known[k][0];
+      tr.children[2].textContent = known[k][1];
+      table.appendChild(tr);
+    });
+  }
+
+  function renderProject() {
+    var box = $('project');
+    box.textContent = '';
+    if (!project.name) { return; }
+    box.appendChild(document.createTextNode('Project: '));
+    var strong = document.createElement('strong');
+    strong.textContent = project.name;
+    box.appendChild(strong);
+    var clear = document.createElement('button');
+    clear.type = 'button';
+    clear.textContent = 'Clear';
+    clear.addEventListener('click', function () { setProject(null, {}); });
+    box.appendChild(clear);
+  }
+
+  function setProject(fileName, settings) {
+    project = { name: fileName, settings: settings || {} };
+    store(CONFIG, project);
+    renderProject();
+    renderPlaces();
+    update();
+  }
+
+  function saveDraft() { store(DRAFT, { name: name.value, source: source.value }); }
+
+  function update() {
+    var spec;
+    lastHtml = null;
+    try {
+      spec = JSON.parse(source.value);
+    } catch (e) {
+      show('bad', 'Not valid JSON: ' + e.message, []);
+      return;
+    }
+    var result = engine.build(spec, name.value.trim() || 'checklist', project.settings);
+    if (result.problems.length) {
+      show('bad', result.problems.length + ' problem(s) — fix them to build the page:', result.problems);
+      return;
+    }
+    lastHtml = result.html;
+    var checks = result.page.sections.reduce(function (n, s) { return n + s.items.length; }, 0);
+    $('count').textContent = result.page.sections.length + ' sections · ' + checks + ' checks';
+    preview.srcdoc = result.html;
+    show('ok', 'Valid. Ticks will be saved under "' + result.page.storage_key + '".', []);
+  }
+
+  function show(kind, message, list) {
+    status.className = kind;
+    status.textContent = message;
+    if (list.length) {
+      var ul = document.createElement('ul');
+      list.forEach(function (p) { var li = document.createElement('li'); li.textContent = p; ul.appendChild(li); });
+      status.appendChild(ul);
+    }
+    $('save-html').disabled = kind !== 'ok';
+  }
+
+  function load(spec, fileName) {
+    source.value = typeof spec === 'string' ? spec : JSON.stringify(spec, null, 2);
+    if (fileName !== undefined) { name.value = fileName; }
+    saveDraft();
+    update();
+  }
+
+  function download(text, fileName, type) {
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([text], { type: type }));
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 0);
+  }
+
+  function baseName() { return (name.value.trim() || 'checklist').replace(/\.(json|html)$/i, ''); }
+
+  function readFile(input, then) {
+    var file = input.files && input.files[0];
+    if (!file) { return; }
+    var reader = new FileReader();
+    reader.onload = function () { then(String(reader.result), file.name); input.value = ''; };
+    reader.readAsText(file, 'utf-8');
+  }
+
+  var strip = function (fileName) { return fileName.replace(/\.(json|html?)$/i, ''); };
+
+  source.addEventListener('input', function () {
+    clearTimeout(timer);
+    timer = setTimeout(function () { saveDraft(); update(); }, 300);
+  });
+  name.addEventListener('input', function () { saveDraft(); update(); });
+
+  $('new').addEventListener('click', function () {
+    if (source.value.trim() && !confirm('Replace the source in the editor with a new starter?')) { return; }
+    load(STARTER, '');
+  });
+  $('open').addEventListener('change', function () {
+    readFile(this, function (text, fileName) { load(text, strip(fileName)); });
+  });
+  $('import').addEventListener('change', function () {
+    readFile(this, function (text, fileName) {
+      if (text.indexOf('data-section') === -1) {
+        show('bad', 'That page is not a checklist (no sections found).', []);
+        return;
+      }
+      var spec = engine.importPage(text, function (html) { return new DOMParser().parseFromString(html, 'text/html'); }, project.settings);
+      spec.$schema = SCHEMA;
+      load(spec, strip(fileName));
+    });
+  });
+  $('config').addEventListener('change', function () {
+    readFile(this, function (text, fileName) {
+      try {
+        setProject(fileName, JSON.parse(text));
+      } catch (e) {
+        show('bad', fileName + ' is not valid JSON: ' + e.message, []);
+      }
+    });
+  });
+  $('format').addEventListener('click', function () {
+    try { load(JSON.parse(source.value)); } catch (e) { update(); }
+  });
+  $('save-json').addEventListener('click', function () {
+    download(source.value.replace(/\s*$/, '\n'), baseName() + '.json', 'application/json');
+  });
+  $('save-html').addEventListener('click', function () {
+    if (lastHtml) { download(lastHtml, baseName() + '.html', 'text/html'); }
+  });
+  $('theme').addEventListener('click', function () {
+    var root = document.documentElement;
+    var dark = root.dataset.theme ? root.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+    root.dataset.theme = dark ? 'light' : 'dark';
+  });
+
+  var savedProject = fetchStored(CONFIG);
+  if (savedProject && savedProject.name) { project = savedProject; }
+  renderProject();
+  renderPlaces();
+
+  var draft = fetchStored(DRAFT);
+  if (draft && draft.source) { load(draft.source, draft.name || ''); } else { load(STARTER, ''); }
+})();
+</script>
+</body>
+</html>

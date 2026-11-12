@@ -1,0 +1,89 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/MahmoudElshiha/checklist-generator/main/checklists.config.schema.json",
+  "title": "checklist-generator project settings",
+  "description": "checklists.config.json at the root of a project: where its sources and pages live, and the defaults every checklist of the project shares. Every field is optional.",
+  "type": "object",
+  "additionalProperties": false,
+  "definitions": {
+    "text": {
+      "type": "object",
+      "required": [
+        "en",
+        "ar"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "en": {
+          "type": "string",
+          "minLength": 1,
+          "description": "English (HTML allowed)"
+        },
+        "ar": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Arabic (HTML allowed)"
+        }
+      }
+    },
+    "lines": {
+      "type": "object",
+      "required": [
+        "en",
+        "ar"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "en": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "ar": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "sources": {
+      "type": "string",
+      "description": "Folder of the JSON sources, relative to this file. Default: checklists/sources."
+    },
+    "output": {
+      "type": "string",
+      "description": "Folder the HTML pages are written to, relative to this file. Default: checklists."
+    },
+    "storage_prefix": {
+      "type": "string",
+      "description": "Start of every page's browser storage key, so two projects' checklists never share ticks. Default: checklist-. Example: myapp-."
+    },
+    "places": {
+      "type": "object",
+      "description": "Step labels for the whole project, added to the built-in ones (and replacing one of the same key): { \"pos\": [\"Shop till\", \"نقطة البيع\"] }.",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "minItems": 2,
+        "maxItems": 2
+      }
+    },
+    "how_to": {
+      "$ref": "#/definitions/lines",
+      "description": "Replaces the standard \"How to use this page\" lines for every checklist of the project. A source's own how_to still wins."
+    },
+    "fail_note": {
+      "$ref": "#/definitions/text",
+      "description": "Replaces the standard \"When a check fails\" note for every checklist of the project. A source's own fail_note still wins."
+    }
+  }
+}

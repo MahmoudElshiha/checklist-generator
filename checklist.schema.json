@@ -1,0 +1,206 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/MahmoudElshiha/checklist-generator/main/checklist.schema.json",
+  "title": "Manual-test checklist source",
+  "description": "One bilingual manual-test checklist. Built into a self-contained HTML page by generator.html (browser) or the checklists CLI. Every text needs English and Arabic; texts may contain HTML (<code>, <strong>, <p>…).",
+  "type": "object",
+  "required": [
+    "title",
+    "heading",
+    "intro",
+    "sections"
+  ],
+  "additionalProperties": false,
+  "definitions": {
+    "text": {
+      "type": "object",
+      "required": [
+        "en",
+        "ar"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "en": {
+          "type": "string",
+          "minLength": 1,
+          "description": "English (HTML allowed)"
+        },
+        "ar": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Arabic (HTML allowed)"
+        }
+      }
+    },
+    "lines": {
+      "type": "object",
+      "required": [
+        "en",
+        "ar"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "en": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "ar": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "title": {
+      "$ref": "#/definitions/text",
+      "description": "The browser tab title, short: \"Equipment Checks\"."
+    },
+    "heading": {
+      "$ref": "#/definitions/text",
+      "description": "The heading in the top bar."
+    },
+    "intro": {
+      "$ref": "#/definitions/text",
+      "description": "What is being tested and why, as HTML paragraphs (<p>…</p>)."
+    },
+    "how_to": {
+      "$ref": "#/definitions/lines",
+      "description": "Optional. Replaces the three standard \"How to use this page\" lines. The legend of step labels is always added after them."
+    },
+    "fail_note": {
+      "$ref": "#/definitions/text",
+      "description": "Optional. Replaces the standard \"When a check fails\" note."
+    },
+    "storage_key": {
+      "type": "string",
+      "description": "Optional. Where the browser saves ticks. Defaults to <storage_prefix><file name>-v1. Keep it when you edit a checklist people are already using; change it to start everyone over."
+    },
+    "places": {
+      "type": "object",
+      "description": "Optional. Step labels for this checklist only: { \"pos\": [\"Shop till\", \"نقطة البيع\"] }. Built in: server, database, admin, website, mobile_app, api, mailbox, partner. Project-wide labels belong in checklists.config.json.",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "minItems": 2,
+        "maxItems": 2
+      }
+    },
+    "sections": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Numbered from 0 in this order. Section 0 is usually Setup.",
+      "items": {
+        "type": "object",
+        "required": [
+          "title",
+          "items"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Optional anchor id; derived from the English title when left out."
+          },
+          "title": {
+            "$ref": "#/definitions/text",
+            "description": "Without its number: \"Setup\", not \"0. Setup\"."
+          },
+          "items": {
+            "type": "array",
+            "minItems": 1,
+            "description": "The checks, numbered <section>.<n> in this order.",
+            "items": {
+              "type": "object",
+              "required": [
+                "key",
+                "title",
+                "steps",
+                "expect"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "key": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9-]+$",
+                  "description": "Unique in this checklist; the browser saves the tick under it. Keep it when you reword the check."
+                },
+                "title": {
+                  "$ref": "#/definitions/text"
+                },
+                "steps": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "where",
+                      "en",
+                      "ar"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "where": {
+                        "type": "string",
+                        "description": "Where the step happens: a built-in place, one from checklists.config.json, or one under this source's \"places\".",
+                        "examples": [
+                          "server",
+                          "database",
+                          "admin",
+                          "website",
+                          "mobile_app",
+                          "api",
+                          "mailbox",
+                          "partner"
+                        ]
+                      },
+                      "en": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "ar": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    }
+                  }
+                },
+                "code": {
+                  "description": "Optional. Commands, queries or payloads shown with a Copy button, as plain text.",
+                  "oneOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  ]
+                },
+                "expect": {
+                  "type": "array",
+                  "minItems": 1,
+                  "description": "\"You should see\": every line must be true to tick the check.",
+                  "items": {
+                    "$ref": "#/definitions/text"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

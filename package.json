@@ -1,0 +1,42 @@
+{
+  "name": "checklist-generator",
+  "version": "1.0.0",
+  "description": "Build bilingual (English/Arabic) manual-test checklist pages from simple JSON sources. Browser tool and CLI, no dependencies.",
+  "license": "MIT",
+  "author": "Mahmoud Elshiha",
+  "type": "commonjs",
+  "main": "checklist-engine.js",
+  "bin": {
+    "checklists": "bin/checklists.js"
+  },
+  "files": [
+    "bin/",
+    "checklist-engine.js",
+    "generator.html",
+    "index.html",
+    "checklist.schema.json",
+    "checklists.config.schema.json",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "node --test",
+    "example": "node bin/checklists.js build --config examples/checklists.config.json"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "qa",
+    "manual-testing",
+    "checklist",
+    "test-plan",
+    "arabic",
+    "rtl",
+    "bilingual"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MahmoudElshiha/checklist-generator.git"
+  },
+  "homepage": "https://github.com/MahmoudElshiha/checklist-generator#readme"
+}

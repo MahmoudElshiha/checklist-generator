@@ -1,0 +1,9 @@
+{
+  "$schema": "../checklists.config.schema.json",
+  "sources": "sources",
+  "output": ".",
+  "storage_prefix": "example-",
+  "places": {
+    "sms": ["Phone (SMS)", "الهاتف (رسالة نصية)"]
+  }
+}
