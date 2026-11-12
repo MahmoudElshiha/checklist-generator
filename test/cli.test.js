@@ -221,3 +221,29 @@ test('build says nothing about updates when already on the latest version', asyn
   assert.equal(result.code, 0, result.out);
   assert.doesNotMatch(result.out, /Update available/);
 });
+
+test('build adds the CSS file named by "style" to every page, after the built-in styles', () => {
+  const dir = tempProject();
+  assert.equal(run(dir, 'init').code, 0);
+  const configFile = path.join(dir, 'checklists.config.json');
+  const config = JSON.parse(fs.readFileSync(configFile, 'utf8'));
+  config.style = 'checklists/style.css';
+  fs.writeFileSync(configFile, JSON.stringify(config));
+  fs.writeFileSync(path.join(dir, 'checklists', 'style.css'), ':root { --primary: #6d28d9; } /* </style> */');
+
+  const built = run(dir, 'build');
+  assert.equal(built.code, 0, built.out);
+  const page = fs.readdirSync(path.join(dir, 'checklists')).find((f) => f.endsWith('.html'));
+  const html = fs.readFileSync(path.join(dir, 'checklists', page), 'utf8');
+  assert.match(html, /<style id="project-style">\n:root \{ --primary: #6d28d9; \}/);
+  assert.ok(html.indexOf('id="project-style"') > html.indexOf('<style>'), 'comes after the built-in styles');
+  assert.equal((html.match(/<\/style>/g) || []).length, 2, 'a "</style" in the CSS cannot end the block');
+});
+
+test('build fails clearly when the "style" file is missing', () => {
+  const dir = tempProject();
+  fs.writeFileSync(path.join(dir, 'checklists.config.json'), JSON.stringify({ style: 'nope.css' }));
+  const result = run(dir, 'build');
+  assert.equal(result.code, 1);
+  assert.match(result.out, /cannot read the "style" file/);
+});

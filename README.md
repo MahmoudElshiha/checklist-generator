@@ -243,9 +243,46 @@ Add your own, or rename a built-in one, with `"places": { "vendor": ["Vendor pan
 | `sources` | `checklists/sources` | Folder of the JSON sources (relative to this file) |
 | `output` | `checklists` | Folder the pages are written to (relative to this file) |
 | `storage_prefix` | `checklist-` | Start of every page's storage key. Use your project's name so two projects never share results |
+| `style` | — | A CSS file (relative to this file) added to every page. See [Your own look](#your-own-look) |
 | `places` | — | Step labels for every checklist |
 | `how_to` | standard | "How to use this page" lines for every checklist (a source's own wins) |
 | `fail_note` | standard | "When a check fails" note for every checklist (a source's own wins) |
+
+### Customizing your pages
+
+- **For the whole project:** set `places`, `how_to` and `fail_note` in `checklists.config.json`.
+- **For one checklist:** put `places`, `how_to` or `fail_note` in its source. They win over the config.
+- **The content is all yours:** title, heading, intro, sections and checks.
+- **The look:** point `style` at your own CSS file. See below.
+
+The starter that `checklists new` creates can't be changed yet. Need it? [Open an issue](https://github.com/MahmoudElshiha/checklist-generator/issues).
+
+### Your own look
+
+Add `"style": "checklists/style.css"` to `checklists.config.json` and run `build`. The CSS is copied into every page after the built-in styles, so your rules win and each page is still one file.
+
+The page uses colour variables, so most themes only need these:
+
+```css
+:root {
+  --primary: #6d28d9;        /* buttons, links, progress */
+  --primary-soft: #ede9fe;
+  --bg: #faf9ff;             /* page background */
+  --surface: #ffffff;        /* cards */
+}
+:root[data-theme="dark"] {   /* dark theme picked with the button */
+  --primary: #a78bfa;
+  --primary-soft: #2e1065;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --primary: #a78bfa; --primary-soft: #2e1065; }
+}
+body { font-family: "Inter", system-ui, sans-serif; }
+```
+
+Other variables: `--ink`, `--muted`, `--line`, `--surface-2`, `--code`, `--radius`, and the result colours `--pass`, `--fail`, `--blocked`, `--na` (each with a `-soft` partner). To restyle anything else, open a built page in your browser's dev tools to see its classes. Class names can change in a new major version.
+
+Change the CSS, then run `build` again. The browser tool ignores `style`.
 
 ---
 

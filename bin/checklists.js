@@ -74,6 +74,19 @@ function loadConfig(explicit) {
 
   const base = path.dirname(file);
 
+  // "style": a CSS file, relative to the config, added to every page after the built-in styles.
+  if (config.style !== undefined) {
+    if (typeof config.style !== 'string' || config.style === '') {
+      fail(file + ': "style" must be the path of a .css file.');
+    }
+    const css = path.resolve(base, config.style);
+    try {
+      config = Object.assign({}, config, { css: fs.readFileSync(css, 'utf8') });
+    } catch (e) {
+      fail(file + ': cannot read the "style" file ' + css + ' (' + e.code + ').');
+    }
+  }
+
   return {
     file: fs.existsSync(file) ? file : null,
     settings: config,
@@ -217,6 +230,8 @@ Read this before adding or changing a checklist.
 - \`${output}/<name>.html\`: the **pages** testers open. They are generated: **never edit them by hand**.
   Change the source and rebuild.
 - \`${config}\`: project settings (step labels under \`places\`, defaults).
+- The pages' look: a CSS file named by \`"style"\` in \`${config}\` (add one if there is none).
+  Change colours there, never in the pages. Override variables like \`--primary\` and \`--bg\`, then rebuild.
 
 Name sources date first, lowercase with dashes: \`2026-11-12-login-manual-tests\`.
 

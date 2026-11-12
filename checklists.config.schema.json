@@ -65,6 +65,11 @@
       "type": "string",
       "description": "Start of every page's browser storage key, so two projects' checklists never share results. Default: checklist-. Example: myapp-."
     },
+    "style": {
+      "type": "string",
+      "minLength": 1,
+      "description": "A CSS file, relative to this file, added to every page after the built-in styles, so its rules win. Override the colour variables (--primary, --bg, …) or style any part of the page. Example: checklists/style.css."
+    },
     "places": {
       "type": "object",
       "description": "Step labels for the whole project, added to the built-in ones (and replacing one of the same key): { \"pos\": [\"Shop till\", \"نقطة البيع\"] }.",

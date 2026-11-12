@@ -214,6 +214,9 @@
     }
     page.how_to = howTo;
 
+    // The project's own CSS (the CLI reads the file named by "style" into config.css).
+    page.css = typeof config.css === 'string' ? config.css : '';
+
     return { page: problems.length ? null : page, problems: problems };
   }
 
@@ -709,6 +712,10 @@
     p('<title>' + esc(page.title.en) + '</title>');
     p('<script>\nvar KEY = ' + key + ';\n(' + headScript.toString() + ')(KEY);\n</' + 'script>');
     p('<style>\n' + STYLE + '\n</style>');
+    if (page.css) {
+      // After the built-in styles, so the project's rules win. A "</style" inside can't end the block early.
+      p('<style id="project-style">\n' + page.css.replace(/<\/(style)/gi, '<\\/$1') + '\n</style>');
+    }
     p('</head>');
     p('<body>');
     p('<a class="skip" href="#main">' + both('Skip to the checks', 'انتقل إلى الفحوصات') + '</a>');
