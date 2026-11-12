@@ -99,7 +99,7 @@ iframe { flex: 1; min-height: 60vh; border: 0; width: 100%; border-radius: 0 0 1
   <details class="panel help">
     <summary>How it works, and the source format</summary>
     <p><strong>Workflow.</strong> Start with <em>New</em>, <em>Open source</em> or <em>Import page</em>. If your project has a <code>checklists.config.json</code>, load it with <em>Project settings</em> first — it adds your project's step labels and defaults. Edit the JSON on the left; the page on the right updates as you type, and anything wrong is listed under the editor. Name the file date first (<code>2026-11-12-feature-manual-tests</code>), then <em>Download source</em> into your sources folder and <em>Download page</em> into your pages folder. Your draft and project settings are kept in this browser.</p>
-    <p><strong>Rules.</strong> Every text needs <code>en</code> and <code>ar</code>, and may contain HTML (<code>&lt;code&gt;</code>, <code>&lt;strong&gt;</code>…). Sections and checks are numbered for you — never type the numbers. Each check's <code>key</code> is what the browser saves the tick under: keep it when you reword a check. <code>code</code> blocks are plain text with a Copy button.</p>
+    <p><strong>Rules.</strong> Every text needs <code>en</code> and <code>ar</code>, and may contain HTML (<code>&lt;code&gt;</code>, <code>&lt;strong&gt;</code>…). Sections and checks are numbered for you — never type the numbers. Each check's <code>key</code> is what the browser saves the result under: keep it when you reword a check. <code>code</code> blocks are plain text with a Copy button.</p>
     <pre>{
   "title":   { "en": "Feature Checks", "ar": "فحوصات الميزة" },
   "heading": { "en": "Feature — manual checks", "ar": "الميزة — الفحوصات اليدوية" },
@@ -212,7 +212,7 @@ iframe { flex: 1; min-height: 60vh; border: 0; width: 100%; border-radius: 0 0 1
     var checks = result.page.sections.reduce(function (n, s) { return n + s.items.length; }, 0);
     $('count').textContent = result.page.sections.length + ' sections · ' + checks + ' checks';
     preview.srcdoc = result.html;
-    show('ok', 'Valid. Ticks will be saved under "' + result.page.storage_key + '".', []);
+    show('ok', 'Valid. Results will be saved under "' + result.page.storage_key + '".', []);
   }
 
   function show(kind, message, list) {

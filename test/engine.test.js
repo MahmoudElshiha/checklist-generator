@@ -44,7 +44,7 @@ test('builds a valid source and numbers sections and checks', () => {
   assert.deepEqual(result.page.sections[1].items.map((i) => i.number), ['1.1', '1.2']);
   assert.equal(result.page.sections[1].id, 's1-feature');
   assert.match(result.html, /^<!doctype html>/);
-  assert.equal((result.html.match(/class="item"/g) || []).length, 3);
+  assert.equal((result.html.match(/data-key=/g) || []).length, 3);
 });
 
 test('derives the storage key from the name and the project prefix', () => {
@@ -121,4 +121,35 @@ test('puts the titles in the page script for the language toggle', () => {
 
   assert.ok(html.includes('en: { title: "Checks"'));
   assert.ok(html.includes('ar: { title: "فحوصات"'));
+});
+
+test('every check offers the four results, a note and a link; the run has a report', () => {
+  const html = engine.build(source(), 'x').html;
+
+  assert.equal((html.match(/type="radio"/g) || []).length, 3 * 4);
+  for (const value of ['pass', 'fail', 'blocked', 'na']) {
+    assert.equal((html.match(new RegExp('value="' + value + '"', 'g')) || []).length, 3);
+  }
+  assert.equal((html.match(/class="result-note" hidden/g) || []).length, 3);
+  assert.ok(html.includes('data-num="1.2"'));
+  assert.ok(html.includes('id="report"') && html.includes('id="tester"') && html.includes('id="env"'));
+  assert.ok(html.includes('data-filter="fail"'));
+});
+
+test('the page script is valid JavaScript and needs nothing from the engine', () => {
+  const html = engine.build(source(), 'x').html;
+  const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
+
+  assert.equal(scripts.length, 2);
+  for (const code of scripts) {
+    assert.doesNotThrow(() => new Function(code), 'a page script does not parse');
+  }
+  assert.doesNotMatch(scripts[1], /\b(DEFAULTS|normalise|STATUS_LABELS|esc\()/);
+});
+
+test('the default how-to speaks of results and the report', () => {
+  const page = engine.build(source(), 'x').page;
+
+  assert.match(page.how_to.en.join(' '), /Copy report/);
+  assert.match(page.fail_note.en, /choose Fail/);
 });

@@ -81,7 +81,7 @@
     },
     "storage_key": {
       "type": "string",
-      "description": "Optional. Where the browser saves ticks. Defaults to <storage_prefix><file name>-v1. Keep it when you edit a checklist people are already using; change it to start everyone over."
+      "description": "Optional. Where the browser saves results. Defaults to <storage_prefix><file name>-v1. Keep it when you edit a checklist people are already using; change it to start everyone over."
     },
     "places": {
       "type": "object",
@@ -132,7 +132,7 @@
                 "key": {
                   "type": "string",
                   "pattern": "^[a-z0-9-]+$",
-                  "description": "Unique in this checklist; the browser saves the tick under it. Keep it when you reword the check."
+                  "description": "Unique in this checklist; the browser saves the result under it. Keep it when you reword the check."
                 },
                 "title": {
                   "$ref": "#/definitions/text"
@@ -191,7 +191,7 @@
                 "expect": {
                   "type": "array",
                   "minItems": 1,
-                  "description": "\"You should see\": every line must be true to tick the check.",
+                  "description": "\"You should see\": every line must be true to choose Pass.",
                   "items": {
                     "$ref": "#/definitions/text"
                   }

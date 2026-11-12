@@ -63,7 +63,7 @@
     },
     "storage_prefix": {
       "type": "string",
-      "description": "Start of every page's browser storage key, so two projects' checklists never share ticks. Default: checklist-. Example: myapp-."
+      "description": "Start of every page's browser storage key, so two projects' checklists never share results. Default: checklist-. Example: myapp-."
     },
     "places": {
       "type": "object",

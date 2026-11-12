@@ -32,24 +32,50 @@ test('init creates a config and a first source that builds', () => {
   assert.ok(fs.existsSync(path.join(dir, 'checklists', sources[0].replace('.json', '.html'))));
 });
 
-test('init adds a "checklists" script to an existing package.json', () => {
+const OWN = require('../package.json');
+
+test('init adds a "checklists" script and a devDependency to an existing package.json', () => {
   const dir = tempProject();
   const pkgFile = path.join(dir, 'package.json');
   fs.writeFileSync(pkgFile, '{\r\n    "name": "app",\r\n    "scripts": {\r\n        "test": "jest"\r\n    }\r\n}\r\n');
 
   const result = run(dir, 'init');
   assert.equal(result.code, 0, result.out);
+  assert.match(result.out, /npm install/);
   assert.match(result.out, /npm run checklists build/);
 
   const text = fs.readFileSync(pkgFile, 'utf8');
   const pkg = JSON.parse(text);
   assert.equal(pkg.scripts.test, 'jest');
-  assert.equal(pkg.scripts.checklists, 'npx --yes github:MahmoudElshiha/checklist-generator');
+  assert.equal(pkg.scripts.checklists, 'checklists');
+  assert.equal(pkg.devDependencies[OWN.name], '^' + OWN.version);
   assert.match(text, /^ {4}"name"/m, 'keeps the indentation');
   assert.ok(!/[^\r]\n/.test(text), 'keeps CRLF line endings');
 
-  run(dir, 'init');
+  const again = run(dir, 'init');
   assert.equal(fs.readFileSync(pkgFile, 'utf8'), text, 'running init again changes nothing');
+  assert.doesNotMatch(again.out, /npm install/);
+});
+
+test('init replaces the old github: script and keeps a dependency already listed', () => {
+  const dir = tempProject();
+  const pkgFile = path.join(dir, 'package.json');
+  fs.writeFileSync(pkgFile, JSON.stringify({
+    name: 'app',
+    scripts: { checklists: 'npx --yes github:MahmoudElshiha/checklist-generator' },
+    devDependencies: { [OWN.name]: '1.0.0' },
+  }, null, 2) + '\n');
+
+  assert.equal(run(dir, 'init').code, 0);
+  const pkg = JSON.parse(fs.readFileSync(pkgFile, 'utf8'));
+  assert.equal(pkg.scripts.checklists, 'checklists');
+  assert.equal(pkg.devDependencies[OWN.name], '1.0.0');
+});
+
+test('version prints the package version', () => {
+  const result = run(tempProject(), 'version');
+  assert.equal(result.code, 0);
+  assert.equal(result.out.trim(), OWN.version);
 });
 
 test('init leaves an existing "checklists" script and a missing package.json alone', () => {
@@ -101,4 +127,59 @@ test('builds the bundled example', () => {
 
   assert.equal(result.code, 0, result.out);
   assert.match(result.out, /7 checks/);
+});
+
+test('init writes an agent guide that names the project\'s folders and command', () => {
+  const dir = tempProject();
+  fs.writeFileSync(path.join(dir, 'checklists.config.json'), JSON.stringify({ sources: 'docs/qa/sources', output: 'docs/qa' }));
+
+  const result = run(dir, 'init');
+  assert.equal(result.code, 0, result.out);
+
+  const guide = fs.readFileSync(path.join(dir, 'docs', 'qa', 'AGENTS.md'), 'utf8');
+  assert.match(guide, /`docs\/qa\/sources\/<name>\.json`/);
+  assert.match(guide, /never edit them by hand/);
+  assert.match(guide, /npx checklist-generator check/, 'no package.json: the npx command');
+  assert.match(guide, /`mailbox`/, 'lists the built-in step labels');
+
+  fs.writeFileSync(path.join(dir, 'docs', 'qa', 'AGENTS.md'), 'my own notes\n');
+  run(dir, 'init');
+  assert.equal(fs.readFileSync(path.join(dir, 'docs', 'qa', 'AGENTS.md'), 'utf8'), 'my own notes\n', 'never overwritten');
+});
+
+test('init uses the npm script in the guide when it adds one', () => {
+  const dir = tempProject();
+  fs.writeFileSync(path.join(dir, 'package.json'), '{ "name": "app" }\n');
+
+  assert.equal(run(dir, 'init').code, 0);
+  assert.match(fs.readFileSync(path.join(dir, 'checklists', 'AGENTS.md'), 'utf8'), /npm run checklists build/);
+});
+
+test('init points an existing AGENTS.md and CLAUDE.md at the guide, once, keeping line endings', () => {
+  const dir = tempProject();
+  fs.writeFileSync(path.join(dir, 'AGENTS.md'), '# Rules\r\nUse tabs.');
+  fs.writeFileSync(path.join(dir, 'CLAUDE.md'), '# Claude\n');
+
+  assert.equal(run(dir, 'init').code, 0);
+  const agents = fs.readFileSync(path.join(dir, 'AGENTS.md'), 'utf8');
+  const claude = fs.readFileSync(path.join(dir, 'CLAUDE.md'), 'utf8');
+
+  assert.ok(agents.startsWith('# Rules\r\nUse tabs.\r\n'), 'keeps what was there');
+  assert.match(agents, /read `checklists\/AGENTS\.md`/);
+  assert.ok(!/[^\r]\n/.test(agents), 'keeps CRLF line endings');
+  assert.match(claude, /read `checklists\/AGENTS\.md`/);
+
+  run(dir, 'init');
+  assert.equal(fs.readFileSync(path.join(dir, 'AGENTS.md'), 'utf8'), agents, 'running init again adds nothing');
+  assert.equal(fs.readFileSync(path.join(dir, 'CLAUDE.md'), 'utf8'), claude);
+});
+
+test('init names the guide CHECKLISTS.md when pages go to the project root', () => {
+  const dir = tempProject();
+  fs.writeFileSync(path.join(dir, 'checklists.config.json'), JSON.stringify({ sources: 'sources', output: '.' }));
+  fs.writeFileSync(path.join(dir, 'AGENTS.md'), '# Rules\n');
+
+  assert.equal(run(dir, 'init').code, 0);
+  assert.ok(fs.existsSync(path.join(dir, 'CHECKLISTS.md')));
+  assert.match(fs.readFileSync(path.join(dir, 'AGENTS.md'), 'utf8'), /read `CHECKLISTS\.md`/);
 });

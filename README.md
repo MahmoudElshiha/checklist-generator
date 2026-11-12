@@ -5,8 +5,9 @@ Build **bilingual (English / Arabic) manual-test checklists** — the pages a te
 You write only the scenarios: what to do, where, and what you should see. The generator turns them into one self-contained HTML page that testers open in any browser:
 
 - an English ⇄ Arabic toggle (the Arabic view is right-to-left);
-- numbered checks with a tickbox each, saved in the tester's browser;
-- progress per section and overall, "hide done", light and dark theme;
+- numbered checks, each taking a result — **Pass, Fail, Blocked or Not applicable** — and a note, saved in the tester's browser;
+- **Copy report**: the run as a Markdown summary (who, where, counts, every failure with its note) ready for a ticket or a chat;
+- progress by result per section and overall, filters (To do, Fail, Blocked), a section list that follows you, light and dark theme;
 - a coloured label on every step saying where it happens (Server, Admin panel, Mobile app…);
 - code blocks with a Copy button;
 - nothing to install, no server, no tracking — one file you can attach, commit or host.
@@ -47,8 +48,8 @@ Two ways to build, same result: a **browser tool** (no install at all) and a **c
 From the root of the project the checklists belong to:
 
 ```bash
-npx github:MahmoudElshiha/checklist-generator init     # creates checklists.config.json and a first source
-npx github:MahmoudElshiha/checklist-generator build    # builds every source into a page
+npx checklist-generator init     # creates checklists.config.json and a first source
+npx checklist-generator build    # builds every source into a page
 ```
 
 `init` creates:
@@ -56,21 +57,38 @@ npx github:MahmoudElshiha/checklist-generator build    # builds every source int
 ```
 checklists.config.json
 checklists/
+  AGENTS.md                                ← how to write checklists here, for AI agents and people
   sources/
     2026-11-12-example-manual-tests.json   ← edit this
 ```
 
 and `build` writes `checklists/2026-11-12-example-manual-tests.html`.
 
-If the folder has a `package.json`, `init` also adds a script to it, so nobody has to remember the long command:
+### With an AI coding agent
+
+`init` writes `AGENTS.md` into the pages folder. It is a short guide, written for this project, that lets an agent (Claude Code, Codex, Cursor…) add or change a checklist without help. It covers:
+
+- which files to edit and which never to touch (the generated `.html` pages);
+- the exact `check` / `build` commands for this project;
+- the source format and the rules that are easy to break: both languages, no numbers, stable `key`s;
+- a short "Writing good checks".
+
+If the project already has an `AGENTS.md` or `CLAUDE.md` at its root, `init` adds a short section there pointing to the guide. Agents start at the root, so this is how they find it. If you add one of those files later, run `init` again: it adds the pointer and changes nothing else. `init` never overwrites a guide that is already there, so edit it freely. If the pages go to the project root, the guide is named `CHECKLISTS.md` instead.
+
+After that, asking an agent to "write the manual-test checklist for the refund feature" is enough. It writes the source, runs `check` until it passes, and builds the page.
+
+If the folder has a `package.json`, `init` also adds the generator as a dev dependency and a script to run it, so the whole team uses the same version:
 
 ```json
 "scripts": {
-  "checklists": "npx --yes github:MahmoudElshiha/checklist-generator"
+  "checklists": "checklists"
+},
+"devDependencies": {
+  "checklist-generator": "^1.0.0"
 }
 ```
 
-After that every command runs through npm:
+Run `npm install` once. After that every command runs through npm:
 
 ```bash
 npm run checklists build
@@ -78,7 +96,21 @@ npm run checklists new 2026-11-12-login-manual-tests
 npm run checklists -- check --config other.json   # options need the "--"
 ```
 
-`init` never changes a `checklists` script that is already there.
+`init` never changes a `checklists` script or a `checklist-generator` dependency that is already there. The one exception is the old `npx --yes github:…` script, which it replaces.
+
+### Updating
+
+New versions are published to npm; what changed is in the [releases](https://github.com/MahmoudElshiha/checklist-generator/releases).
+
+```bash
+npm update checklist-generator                     # newest 1.x, the range in package.json
+npm install --save-dev checklist-generator@latest  # also moves to a new major version
+npm run checklists version                         # what you have now
+```
+
+Commit `package.json` and `package-lock.json` so everyone gets the same version. If you run it with `npx checklist-generator` instead, `npx checklist-generator@latest` makes sure you get the newest version.
+
+Pages you already built never change on their own. Run `npm run checklists build` after updating to give them the new version's features. Testers keep their results (ticks from a version 1 page become Pass).
 
 ---
 
@@ -151,7 +183,7 @@ The `$schema` line gives you autocomplete, hover help and red underlines in VS C
 | `how_to` | no | `{ "en": [lines], "ar": [lines] }` — replaces the standard "How to use this page" lines. The step-label legend is always added after them |
 | `fail_note` | no | Replaces the standard "When a check fails" note |
 | `places` | no | Step labels used only by this checklist ([Step labels](#step-labels-where)) |
-| `storage_key` | no | Where the browser saves ticks. Leave it out and it is `<storage_prefix><file name>-v1`. Set it only to keep ticks when you rename a file |
+| `storage_key` | no | Where the browser saves results. Leave it out and it is `<storage_prefix><file name>-v1`. Set it only to keep results when you rename a file |
 
 ### Section fields
 
@@ -165,11 +197,11 @@ The `$schema` line gives you autocomplete, hover help and red underlines in VS C
 
 | Field | Required | Meaning |
 |---|---|---|
-| `key` | yes | Unique within the checklist, lowercase with dashes: `email-reset`. The browser saves the tick under it — **keep it when you reword the check**, or testers lose that tick |
+| `key` | yes | Unique within the checklist, lowercase with dashes: `email-reset`. The browser saves the result under it — **keep it when you reword the check**, or testers lose that result |
 | `title` | yes | What the check proves, as a sentence: "The code sets a new password, once" |
 | `steps` | yes | What to do, in order. Each step: `{ "where": "<label>", "en": "…", "ar": "…" }` |
 | `code` | no | A string, or a list of strings: commands, SQL, JSON, shown with a Copy button |
-| `expect` | yes | "You should see": a list of `{ "en", "ar" }` lines. The tester ticks only when **every** line is true |
+| `expect` | yes | "You should see": a list of `{ "en", "ar" }` lines. The tester chooses Pass only when **every** line is true |
 
 ---
 
@@ -218,7 +250,7 @@ Optional, at the root of your project. Every field is optional.
 |---|---|---|
 | `sources` | `checklists/sources` | Folder of the JSON sources, relative to the config file |
 | `output` | `checklists` | Folder the pages are written to, relative to the config file |
-| `storage_prefix` | `checklist-` | Start of every page's storage key, so two projects' checklists opened in the same browser never share ticks. Use your project's name |
+| `storage_prefix` | `checklist-` | Start of every page's storage key, so two projects' checklists opened in the same browser never share results. Use your project's name |
 | `places` | — | Step labels for every checklist of the project |
 | `how_to` | standard lines | Replaces the "How to use this page" lines for every checklist (a source's own still wins) |
 | `fail_note` | standard note | Replaces the "When a check fails" note for every checklist (a source's own still wins) |
@@ -231,7 +263,8 @@ In the browser tool, load this file with **Project settings** so the preview use
 
 ```
 checklists init                 create checklists.config.json and a first source here,
-                                and add a "checklists" script to package.json
+                                add a "checklists" script and a devDependency to
+                                package.json, and an AGENTS.md guide for AI agents
 checklists new <name>           create a new source from the starter
 checklists build [name...]      build every source (or the ones named) into pages
 checklists check [name...]      validate only, write nothing
@@ -240,7 +273,7 @@ checklists help
 --config <file>                 use this config instead of ./checklists.config.json
 ```
 
-Run it with `npx github:MahmoudElshiha/checklist-generator <command>`, with `npm run checklists <command>` once `init` has added the script, or from a clone with `node bin/checklists.js <command>`. To type plain `checklists <command>` anywhere, install it globally: `npm i -g github:MahmoudElshiha/checklist-generator`.
+Run it with `npm run checklists <command>` once `init` has added it to the project, with `npx checklist-generator <command>`, or from a clone with `node bin/checklists.js <command>`. To type plain `checklists <command>` anywhere, install it globally: `npm i -g checklist-generator`. `checklists version` prints the version you have.
 
 - It reads the config from the current folder (or `--config`); without one it uses `./checklists/sources` → `./checklists`.
 - `build` refuses a source with problems, prints every one of them, writes nothing for that source, and exits with code 1 — so `checklists check` works as a pre-commit hook or a CI step.
@@ -280,7 +313,7 @@ Your draft and project settings are kept in the browser (local storage), so clos
 Already have checklist pages made by hand in this layout (or built by an older copy of this tool)? In the browser tool, load your **Project settings** first, then **Import page (.html)**:
 
 - every section, check, step, code block and expectation comes back as a source;
-- the page's storage key is kept, so testers keep their ticks;
+- the page's storage key is kept, so testers keep their results;
 - a step label the tool does not know becomes an entry under `places` in the source — move it to your project settings if other checklists use it too;
 - the "How to use" lines and the "When a check fails" note are kept as the source's own `how_to` and `fail_note`. Delete them from the source if the standard ones (or your project's) will do.
 
@@ -307,11 +340,16 @@ The tool makes the page; the value is in what you write. What has worked:
 
 Every generated page has, with nothing to set up:
 
+- **A result per check**: Pass, Fail, Blocked (could not run it) or Not applicable — each with an icon and a word, never colour alone. Choosing Fail or Blocked opens a note: *what did you see?* Passed checks fold to one line; click to open them again.
+- **The run**: *Tested by* and *Server and build* fields at the top.
+- **Copy report**: a Markdown summary of the run — who, where, when, the counts, every Fail, Blocked and Not applicable check with its note, and the checks not run yet. **Print** gives the same as a paper report.
+- **Progress by result**: one bar split into pass, fail, blocked and not applicable, overall and per section, with the counts beside it.
+- **Finding your way**: on a wide screen a section list stays beside the checks, with each section's progress and a "1 Fail" flag, and follows as you scroll. **Next to do** jumps to the first check without a result. Filters show only To do, Fail or Blocked. **Copy link** on a check gives a link that opens that check.
 - **English / Arabic** button at the top (the Arabic view is right-to-left). Open `page.html?lang=ar` to start in Arabic.
-- **A tickbox per check**, saved in that browser and shared between both languages. Progress bars per section and overall, with counts in the table of contents.
-- **Hide done** to see only what is left, **Theme** for light or dark, **Reset** to clear every tick.
-- **Copy** buttons on code blocks.
-- A **"When a check fails"** note telling them what to record and send.
+- **Theme** for light or dark, **Clear results** to start over, **Copy** buttons on code blocks.
+- Keyboard and screen-reader friendly: visible focus, a skip link, results announced in words ("Check 1.2: Fail. 5 of 7 done.").
+
+Results, notes and the run fields are saved in that browser, under the page's storage key, and shared between both languages. A page built by version 1 saved ticks under the same key: they show as **Pass** in the new page.
 
 It is one HTML file with no external requests: attach it to a ticket, commit it, or host it anywhere.
 
@@ -350,7 +388,7 @@ Things to keep:
 
 - **No dependencies.** The engine must load as a plain `<script>` in a browser and through `require()` in Node.
 - **The generated page stays one self-contained file**: no external CSS, fonts or scripts.
-- **A storage key never changes for an existing page** unless its author asks — testers' ticks live under it.
+- **A storage key never changes for an existing page** unless its author asks — testers' results live under it.
 - Change the source format and you change `checklist.schema.json`, the README tables and a test in the same commit.
 
 ---
@@ -360,10 +398,10 @@ Things to keep:
 **Can I have only English, or another language?**
 Not today: every checklist is English and Arabic, and both are required. The page's toggle, labels and right-to-left layout are built for that pair.
 
-**Can a tester's ticks be shared with someone else?**
-No. Ticks live in that browser only. To report, testers send the check numbers that failed (the page tells them how).
+**Can a tester's results be shared with someone else?**
+Results live in that browser only. To share them, the tester presses **Copy report** and pastes it into the ticket or chat — every failure comes with its note.
 
-**I renamed a source and testers lost their ticks.**
+**I renamed a source and testers lost their results.**
 The storage key comes from the file name. Put the old key in the source as `"storage_key"` and rebuild.
 
 **Why is my HTML in a text shown as-is?**
